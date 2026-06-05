@@ -234,21 +234,3 @@ Skip Feroxbuster entirely — `Ctrl+U` on the homepage link to `login.html` woul
 *Last updated: 2026-06-06*
 
 ---
-
-## 📣 SEO & Publishing
-
-**Alternative SEO-friendly titles:**
-
-1. `TryHackMe CyberHeroes Writeup — Client-Side Auth Bypass & Hardcoded Credentials`
-2. `CyberHeroes CTF Walkthrough: Why You Never Put Passwords in JavaScript`
-3. `TryHackMe CyberHeroes — Finding the Flag in Plain Sight with View Source`
-
----
-
-**Ready-to-post tweet:**
-
-> Solved TryHackMe's CyberHeroes 🦸 The entire "auth" was client-side JS with hardcoded creds and a reversed password string. Ctrl+U, read the source, reconstruct the flag URL. That's it. The box description said "hacker" — they meant browser inspector. #TryHackMe #CTF #WebSecurity
-
----
-
-[↑ Back to top](#)
