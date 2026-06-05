@@ -369,21 +369,3 @@ Check `robots.txt` before running Feroxbuster — the password was sitting there
 *Last updated: 2026-06-06*
 
 ---
-
-## 📣 SEO & Publishing
-
-**Alternative SEO-friendly titles:**
-
-1. `TryHackMe Pickle Rick Writeup — Command Injection, Filter Bypass & Sudo Misconfiguration`
-2. `Pickle Rick CTF Walkthrough: Credentials in Source Code, robots.txt, and a Leaky Command Panel`
-3. `TryHackMe Pickle Rick — Finding All 3 Ingredients Step by Step (2026)`
-
----
-
-**Ready-to-post tweet:**
-
-> Solved TryHackMe's Pickle Rick 🥒 Username in an HTML comment. Password in robots.txt. Web shell with `cat` blocked but `sudo less` wide open. `www-data` had passwordless sudo. Three ingredients, zero resistance. *BURRRP*. #TryHackMe #CTF #WebSecurity #PickleRick
-
----
-
-[↑ Back to top](#)
