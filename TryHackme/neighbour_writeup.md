@@ -221,20 +221,4 @@ Skip Feroxbuster — `Ctrl+U` on the login page gives the credentials, logging i
 
 ---
 
-## 📣 SEO & Publishing
-
-**Alternative SEO-friendly titles:**
-
-1. `TryHackMe Neighbour Writeup — IDOR Vulnerability & Hardcoded Credentials in HTML Comments`
-2. `Neighbour CTF Walkthrough: One URL Parameter Away from Admin Access`
-3. `TryHackMe Neighbour Room — Classic IDOR Attack Explained Step by Step`
-
----
-
-**Ready-to-post tweet:**
-
-> Solved TryHackMe's Neighbour room 🏘️ Guest creds hiding in an HTML comment → login → `?user=guest` in the URL → change it to `?user=admin` → flag. Server trusted the client to ask nicely. It didn't. Classic IDOR, beautifully simple. #TryHackMe #CTF #IDOR #WebSecurity
-
----
-
 [↑ Back to top](#)
