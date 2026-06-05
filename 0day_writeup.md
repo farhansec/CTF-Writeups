@@ -364,20 +364,6 @@ Skip Metasploit for the Shellshock step and write the manual `curl` payload inst
 
 ---
 
-## 📣 SEO & Publishing
-
-**Alternative SEO-friendly titles:**
-
-1. `TryHackMe 0day Writeup — Shellshock to Root via OverlayFS (CVE-2014-6271 + CVE-2015-1328)`
-2. `Hacking 0day on TryHackMe: Apache CGI Shellshock + Kernel Privilege Escalation`
-3. `0day TryHackMe Walkthrough — From www-data to Root with a 2014 Bash Bug`
-
----
-
-**Ready-to-post tweet:**
-
-> Pwned TryHackMe's 0day box 🎯 Chain: exposed SSH key as a rabbit hole → Shellshock on /cgi-bin/test.cgi (CVE-2014-6271) for www-data → OverlayFS kernel exploit (CVE-2015-1328) for root. Flags in the bag. #TryHackMe #CTF #Shellshock #PenTest
-
 ---
 
 [↑ Back to top](#)
