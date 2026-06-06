@@ -328,21 +328,3 @@ Skip Feroxbuster entirely — the homepage had no links, no forms, and no dynami
 *Last updated: 2026-06-07*
 
 ---
-
-## 📣 SEO & Publishing
-
-**Alternative SEO-friendly titles:**
-
-1. `TryHackMe Bounty Hacker Writeup — Anonymous FTP, Hydra SSH Brute Force & sudo tar GTFOBins`
-2. `Bounty Hacker CTF Walkthrough: From FTP Password List to Root Shell in Under 10 Minutes`
-3. `TryHackMe Bounty Hacker 2026 — Cowboy Bebop Room Full Solution with Privilege Escalation`
-
----
-
-**Ready-to-post tweet:**
-
-> Rooted TryHackMe's Bounty Hacker 🚀 Anon FTP dropped a username and a 26-entry password list. Hydra cracked SSH in 6 seconds. `sudo tar --checkpoint-action=exec=/bin/sh` → root. The machine practically wrote its own writeup. See you, Space Cowboy. #TryHackMe #CTF #GTFOBins
-
----
-
-[↑ Back to top](#)
