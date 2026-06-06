@@ -31,7 +31,6 @@
 - [Key Takeaway](#-key-takeaway)
 - [If I Did It Again](#-if-i-did-it-again)
 - [Changelog](#-changelog)
-- [SEO & Publishing](#-seo--publishing)
 
 ---
 
