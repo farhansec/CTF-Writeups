@@ -435,21 +435,3 @@ Skip the CVE-2019-9053 exploit entirely and go straight from Hydra (which cracke
 *Last updated: 2026-06-06*
 
 ---
-
-## 📣 SEO & Publishing
-
-**Alternative SEO-friendly titles:**
-
-1. `TryHackMe Simple CTF Writeup — Anonymous FTP, CMS SQLi, Upload Bypass & Sudo Vim Privesc`
-2. `Simple CTF Full Walkthrough: CVE-2019-9053, .phtml Shell Upload, and GTFOBins Escalation`
-3. `TryHackMe Simple CTF 2026 — From FTP Note to Root via CMS Made Simple Exploit`
-
----
-
-**Ready-to-post tweet:**
-
-> Rooted TryHackMe Simple CTF 🎯 Chain: anon FTP note → username mitch → CMS Made Simple SQLi (CVE-2019-9053) → hash cracked (secret) → .phtml upload bypass → www-data → SSH → sudo vim GTFOBins → root. Four services, six steps, one weak password doing all the damage. #TryHackMe #CTF
-
----
-
-[↑ Back to top](#)
