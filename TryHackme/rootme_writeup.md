@@ -299,21 +299,3 @@ Run the SUID search before looking for other escalation vectors — on this box 
 *Last updated: 2026-06-07*
 
 ---
-
-## 📣 SEO & Publishing
-
-**Alternative SEO-friendly titles:**
-
-1. `TryHackMe RootMe Writeup — File Upload Bypass (.phtml) & SUID Python Privilege Escalation`
-2. `RootMe CTF Walkthrough: Why .phtml Breaks Your Upload Filter and Why Python Should Never Be SUID`
-3. `TryHackMe RootMe 2026 — From www-data to Root via SUID Python2.7 GTFOBins`
-
----
-
-**Ready-to-post tweet:**
-
-> Rooted TryHackMe's RootMe 🐚 Filter blocked .php but not .phtml → reverse shell as www-data → SUID scan → python2.7 owned by root with SUID set → one os.execl() later → root. The box literally tells you what to do in the name. #TryHackMe #CTF #SUID #GTFOBins
-
----
-
-[↑ Back to top](#)
