@@ -365,21 +365,3 @@ Pipe the `/etc/shadow` output directly through John on the victim side isn't pos
 *Last updated: 2026-06-07*
 
 ---
-
-## 📣 SEO & Publishing
-
-**Alternative SEO-friendly titles:**
-
-1. `TryHackMe Brute It Writeup — Hydra, SSH Key Cracking, sudo cat /etc/shadow & Root Hash Crack`
-2. `Brute It CTF Walkthrough: From HTML Comment to Root via John the Ripper (Twice)`
-3. `TryHackMe Brute It 2026 — Complete Walkthrough with sudo cat Privilege Escalation Explained`
-
----
-
-**Ready-to-post tweet:**
-
-> Rooted TryHackMe's Brute It 🔨 Username in HTML comment → Hydra cracked the admin panel → SSH key in panel → John cracked the passphrase → sudo cat /etc/shadow → John cracked root hash → su root. John the Ripper did more work than I did. #TryHackMe #CTF #JohnTheRipper
-
----
-
-[↑ Back to top](#)
